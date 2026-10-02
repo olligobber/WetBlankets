@@ -1,5 +1,7 @@
 import Mathlib.Data.Finset.Defs
 import Mathlib.Algebra.BigOperators.Group.Finset.Defs
+import Mathlib.Data.Finset.Card
+import Mathlib.Data.Fintype.Basic
 
 -- https://sudokupad.app/tdzmfngyfp
 
@@ -246,3 +248,87 @@ lemma br_neg : ⟨8, 6⟩ ∈ solution.negcells := by
   rw[cageset, Finset.mem_singleton] at cellincage
   cases cellincage
   exact cellneg
+
+lemma nine_negs : solution.negcells.card = 9 := by
+  have atleast_nine : solution.negcells.card ≥ 9 := by
+    let cages := wet_blankets.killercages
+    have nine_cages : cages.card = 9 := by decide
+    have disjoint_cages :
+      ∀ c ∈ cages, ∀ d ∈ cages,
+      c ≠ d → c.cells ∩ d.cells = ∅ := by decide
+    let cage_has_neg :
+      ∀ cage ∈ cages, ∃ cell ∈ cage.cells, cell ∈ solution.negcells := by
+      intro cage hcage
+      have ⟨cell, cellincage, cellisneg, _⟩ := (validsol.2.2.2.2.2.2 cage hcage).2
+      exact ⟨cell, cellincage, cellisneg⟩
+    let cage_to_cell : cages → Cell :=
+      fun ⟨cage, hcage⟩ ↦ (cage_has_neg cage hcage).choose
+    have cage_to_cell_props : ∀ cage : cages,
+      cage_to_cell cage ∈ cage.val.cells ∧
+      cage_to_cell cage ∈ solution.negcells
+      := by
+        intro ⟨cage, hcage⟩
+        exact (cage_has_neg cage hcage).choose_spec
+    have cage_to_cell_inj : Function.Injective cage_to_cell := by
+      intro ⟨cage, hcage⟩ ⟨dage, hdage⟩ h
+      let cell := cage_to_cell ⟨cage, hcage⟩
+      have cell_in_cage : cell ∈ cage.cells :=
+        (cage_to_cell_props ⟨cage, hcage⟩).1
+      have cell_in_dage : cell ∈ dage.cells := by
+        change cage_to_cell ⟨cage, hcage⟩ ∈ dage.cells
+        rw[h]
+        exact (cage_to_cell_props ⟨dage, hdage⟩).1
+      have cell_in_inter : cell ∈ cage.cells ∩ dage.cells := by
+        rw[Finset.mem_inter]
+        exact ⟨cell_in_cage, cell_in_dage⟩
+      by_contra neq
+      rw[Subtype.mk.injEq] at neq
+      have disjoint := disjoint_cages cage hcage dage hdage neq
+      rw[disjoint] at cell_in_inter
+      simp at cell_in_inter
+    let cage_cells := cages.attach.map ⟨cage_to_cell, cage_to_cell_inj⟩
+    have nine_cage_cells : cage_cells.card = 9 :=
+      Finset.card_map ⟨cage_to_cell, cage_to_cell_inj⟩
+    have cage_cells_neg : cage_cells ⊆ solution.negcells := by
+      intro cell hcell
+      change cell ∈ cages.attach.map ⟨cage_to_cell, cage_to_cell_inj⟩ at hcell
+      simp only
+        [ Finset.mem_map
+        , Finset.mem_attach
+        , Function.Embedding.coeFn_mk
+        , true_and
+        , Subtype.exists
+        ] at hcell
+      obtain ⟨cage, hcage⟩ := hcell
+      obtain ⟨cage_in_cages, hcell⟩ := hcage
+      have cell_props := cage_to_cell_props ⟨cage, cage_in_cages⟩
+      rw[hcell] at cell_props
+      exact cell_props.2
+    change 9 ≤ solution.negcells.card
+    rw[Finset.le_card_iff_exists_subset_card]
+    exact ⟨cage_cells, cage_cells_neg, nine_cage_cells⟩
+  have atmost_nine : solution.negcells.card ≤ 9 := by
+    let negcell_row : solution.negcells → Fin 9 := fun ⟨cell, _⟩ ↦ cell.row.toFin
+    have row_injective : Function.Injective negcell_row := by
+      intro ⟨cell, hcell⟩ ⟨dell, hdell⟩ h
+      change cell.row.toFin = dell.row.toFin at h
+      rw[←Row.mk.injEq] at h
+      change cell.row = dell.row at h
+      rw[Subtype.mk.injEq]
+      by_contra neq
+      exact (validsol.2.2.2.2.2.1 cell hcell dell hdell neq).1 h
+    let negcell_rows := solution.negcells.attach.map ⟨negcell_row, row_injective⟩
+    have : negcell_rows.card = solution.negcells.attach.card :=
+      Finset.card_map ⟨negcell_row, row_injective⟩
+    rw[Finset.card_attach] at this
+    rw[← this]
+    let univ_nine : Finset (Fin 9) := Finset.univ
+    have : univ_nine.card = 9 := by decide
+    conv =>
+      rhs
+      rw[← this]
+    rw[Finset.le_card_iff_exists_subset_card]
+    use negcell_rows
+    simp only [and_true]
+    exact Finset.subset_univ negcell_rows
+  exact le_antisymm atmost_nine atleast_nine
