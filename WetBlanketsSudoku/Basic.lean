@@ -252,9 +252,12 @@ def wet_blankets : Puzzle where
 axiom solution : NegSolution
 axiom validsol : NegRule.satisfies wet_blankets solution
 
-lemma br_neg : ⟨8, 6⟩ ∈ solution.negcells := by
+def cages := wet_blankets.killercages
+noncomputable def negs := solution.negcells
+
+theorem br_neg : ⟨8, 6⟩ ∈ negs := by
   have ⟨cage, cageinpuzzle, cageset⟩ :
-    ∃ cage ∈ wet_blankets.killercages, cage.cells = { ⟨8, 6⟩ } := by
+    ∃ cage ∈ cages, cage.cells = { ⟨8, 6⟩ } := by
       decide
   have ⟨cell, cellincage, cellneg, _⟩ :=
     (validsol.2.2.2.2.2.2 cage cageinpuzzle).2
@@ -262,66 +265,54 @@ lemma br_neg : ⟨8, 6⟩ ∈ solution.negcells := by
   cases cellincage
   exact cellneg
 
-lemma nine_negs : solution.negcells.card = 9 := by
-  have atleast_nine : solution.negcells.card ≥ 9 := by
+lemma cage_has_some_neg : ∀ cage ∈ cages, ∃ cell ∈ cage.cells, cell ∈ negs := by
+  intro cage hcage
+  have ⟨cell, cellincage, cellisneg, _⟩ := (validsol.2.2.2.2.2.2 cage hcage).2
+  exact ⟨cell, cellincage, cellisneg⟩
+
+noncomputable def cage_neg : (cage : cages) → negs := fun ⟨cage, hcage⟩ ↦
+  ⟨ (cage_has_some_neg cage hcage).choose
+  , (cage_has_some_neg cage hcage).choose_spec.2
+  ⟩
+
+lemma cage_has_neg : ∀ cage : cages, (cage_neg cage).val ∈ cage.val.cells :=
+  fun ⟨cage, hcage⟩ ↦ (cage_has_some_neg cage hcage).choose_spec.1
+
+lemma cage_neg_inj : Function.Injective cage_neg := by
+  have disjoint_cages :
+    ∀ c ∈ cages, ∀ d ∈ cages,
+    c ≠ d → c.cells ∩ d.cells = ∅ := by decide
+  intro cage dage h
+  let cell := cage_neg cage
+  have cell_in_cage := cage_has_neg cage
+  change cell.val ∈ cage.val.cells at cell_in_cage
+  have cell_in_dage : cell.val ∈ dage.val.cells := by
+    change (cage_neg cage).val ∈ dage.val.cells
+    rw[h]
+    exact cage_has_neg dage
+  have cell_in_inter : cell.val ∈ cage.val.cells ∩ dage.val.cells := by
+    rw[Finset.mem_inter]
+    exact ⟨cell_in_cage, cell_in_dage⟩
+  by_contra neq
+  rw[Subtype.mk.injEq] at neq
+  have disjoint := disjoint_cages cage cage.prop dage dage.prop neq
+  rw[disjoint] at cell_in_inter
+  simp at cell_in_inter
+
+lemma nine_negs : negs.card = 9 := by
+  have atleast_nine : negs.card ≥ 9 := by
     let cages := wet_blankets.killercages
     have nine_cages : cages.card = 9 := by decide
-    have disjoint_cages :
-      ∀ c ∈ cages, ∀ d ∈ cages,
-      c ≠ d → c.cells ∩ d.cells = ∅ := by decide
-    let cage_has_neg :
-      ∀ cage ∈ cages, ∃ cell ∈ cage.cells, cell ∈ solution.negcells := by
-      intro cage hcage
-      have ⟨cell, cellincage, cellisneg, _⟩ := (validsol.2.2.2.2.2.2 cage hcage).2
-      exact ⟨cell, cellincage, cellisneg⟩
-    let cage_to_cell : cages → Cell :=
-      fun ⟨cage, hcage⟩ ↦ (cage_has_neg cage hcage).choose
-    have cage_to_cell_props : ∀ cage : cages,
-      cage_to_cell cage ∈ cage.val.cells ∧
-      cage_to_cell cage ∈ solution.negcells
-      := by
-        intro ⟨cage, hcage⟩
-        exact (cage_has_neg cage hcage).choose_spec
-    have cage_to_cell_inj : Function.Injective cage_to_cell := by
-      intro ⟨cage, hcage⟩ ⟨dage, hdage⟩ h
-      let cell := cage_to_cell ⟨cage, hcage⟩
-      have cell_in_cage : cell ∈ cage.cells :=
-        (cage_to_cell_props ⟨cage, hcage⟩).1
-      have cell_in_dage : cell ∈ dage.cells := by
-        change cage_to_cell ⟨cage, hcage⟩ ∈ dage.cells
-        rw[h]
-        exact (cage_to_cell_props ⟨dage, hdage⟩).1
-      have cell_in_inter : cell ∈ cage.cells ∩ dage.cells := by
-        rw[Finset.mem_inter]
-        exact ⟨cell_in_cage, cell_in_dage⟩
-      by_contra neq
-      rw[Subtype.mk.injEq] at neq
-      have disjoint := disjoint_cages cage hcage dage hdage neq
-      rw[disjoint] at cell_in_inter
-      simp at cell_in_inter
-    let cage_cells := cages.attach.map ⟨cage_to_cell, cage_to_cell_inj⟩
+    let cage_cells := cages.attach.map ⟨cage_neg, cage_neg_inj⟩
     have nine_cage_cells : cage_cells.card = 9 :=
-      Finset.card_map ⟨cage_to_cell, cage_to_cell_inj⟩
-    have cage_cells_neg : cage_cells ⊆ solution.negcells := by
-      intro cell hcell
-      change cell ∈ cages.attach.map ⟨cage_to_cell, cage_to_cell_inj⟩ at hcell
-      simp only
-        [ Finset.mem_map
-        , Finset.mem_attach
-        , Function.Embedding.coeFn_mk
-        , true_and
-        , Subtype.exists
-        ] at hcell
-      obtain ⟨cage, hcage⟩ := hcell
-      obtain ⟨cage_in_cages, hcell⟩ := hcage
-      have cell_props := cage_to_cell_props ⟨cage, cage_in_cages⟩
-      rw[hcell] at cell_props
-      exact cell_props.2
-    change 9 ≤ solution.negcells.card
-    rw[Finset.le_card_iff_exists_subset_card]
-    exact ⟨cage_cells, cage_cells_neg, nine_cage_cells⟩
-  have atmost_nine : solution.negcells.card ≤ 9 := by
-    let negcell_row : solution.negcells → Fin 9 := fun ⟨cell, _⟩ ↦ cell.row.toFin
+      Finset.card_map ⟨cage_neg, cage_neg_inj⟩
+    change 9 ≤ negs.card
+    rw[← Finset.card_attach, Finset.le_card_iff_exists_subset_card]
+    refine ⟨cage_cells, ?_, nine_cage_cells⟩
+    intro cell _
+    simp
+  have atmost_nine : negs.card ≤ 9 := by
+    let negcell_row : negs → Fin 9 := fun ⟨cell, _⟩ ↦ cell.row.toFin
     have row_injective : Function.Injective negcell_row := by
       intro ⟨cell, hcell⟩ ⟨dell, hdell⟩ h
       change cell.row.toFin = dell.row.toFin at h
@@ -330,8 +321,8 @@ lemma nine_negs : solution.negcells.card = 9 := by
       rw[Subtype.mk.injEq]
       by_contra neq
       exact (validsol.2.2.2.2.2.1 cell hcell dell hdell neq).1 h
-    let negcell_rows := solution.negcells.attach.map ⟨negcell_row, row_injective⟩
-    have : negcell_rows.card = solution.negcells.attach.card :=
+    let negcell_rows := negs.attach.map ⟨negcell_row, row_injective⟩
+    have : negcell_rows.card = negs.attach.card :=
       Finset.card_map ⟨negcell_row, row_injective⟩
     rw[Finset.card_attach] at this
     rw[← this]
@@ -346,14 +337,12 @@ lemma nine_negs : solution.negcells.card = 9 := by
     exact Finset.subset_univ negcell_rows
   exact le_antisymm atmost_nine atleast_nine
 
-lemma col_has_neg : ∀ c : Col, ∃ r : Row, ⟨c, r⟩ ∈ solution.negcells := by
+lemma col_has_neg : ∀ c : Col, ∃ r : Row, ⟨c, r⟩ ∈ negs := by
   intro col
   let neg_col : (c : Cell) → c ∈ solution.negcells → Col :=
     fun cell _ ↦ cell.col
   have neg_col_inj :
-    ∀ (cell dell : Cell)
-      (hc : cell ∈ solution.negcells)
-      (hd : dell ∈ solution.negcells),
+    ∀ (cell dell : Cell) (hc : cell ∈ negs) (hd : dell ∈ negs),
       neg_col cell hc = neg_col dell hd → cell = dell := by
         intro cell dell hc hd h₁
         change cell.col = dell.col at h₁
@@ -362,7 +351,7 @@ lemma col_has_neg : ∀ c : Col, ∃ r : Row, ⟨c, r⟩ ∈ solution.negcells :
   obtain ⟨cell, h₃, h₄⟩ := @Finset.surj_on_of_inj_on_of_card_le
     Cell
     Col
-    solution.negcells
+    negs
     Finset.univ
     neg_col
     (by simp)
@@ -377,19 +366,92 @@ lemma col_has_neg : ∀ c : Col, ∃ r : Row, ⟨c, r⟩ ∈ solution.negcells :
   rw[h₄]
   exact h₃
 
-lemma cage_has_neg :
-  ∀ cage : wet_blankets.killercages,
-  ∃ cell ∈ cage.val.cells,
-  cell ∈ solution.negcells := by
-    intro ⟨cage, hcage⟩
-    obtain ⟨cell, in_cage, in_neg, _⟩ := (validsol.2.2.2.2.2.2 cage hcage).2
-    exact ⟨cell, in_cage, in_neg⟩
+lemma all_neg_in_cage : ∀ cell ∈ negs, ∃ cage ∈ cages, cell ∈ cage.cells := by
+  intro cell is_neg
+  obtain ⟨cage, _, hcell⟩ := @Finset.surj_on_of_inj_on_of_card_le
+    cages
+    negs
+    Finset.univ
+    Finset.univ
+    (fun cage _ ↦ cage_neg cage)
+    (by simp)
+    (fun cage dage _ _ h ↦ cage_neg_inj h)
+    (by
+      rw[Finset.univ_eq_attach, Finset.card_attach, nine_negs]
+      decide
+    )
+    ⟨cell, is_neg⟩
+    (by simp)
+  refine ⟨cage, cage.prop, ?_⟩
+  have := cage_has_neg cage
+  rw[← hcell] at this
+  exact this
 
-lemma all_neg_in_cage :
-  ∀ cell ∈ solution.negcells,
-  ∃ cage ∈ wet_blankets.killercages,
-  cell ∈ cage.cells := by
-    intro cell is_neg
-    by_contra h
-    simp at h
-    sorry -- TODO
+lemma col_seven_neg : ⟨7, 2⟩ ∈ negs ∨ ⟨7, 3⟩ ∈ negs := by
+  obtain ⟨r, hr⟩ := col_has_neg 7
+  obtain ⟨cage, hcage, cr_in_cage⟩ := all_neg_in_cage ⟨7, r⟩ hr
+  cases hcage
+  · simp [show (7 : Col) ≠ 2 by decide] at cr_in_cage
+  rename_i h
+  simp only
+    [ List.mem_cons
+    , KillerCage.mk.injEq
+    , reduceCtorEq
+    , and_false
+    , List.not_mem_nil
+    , or_self
+    , not_false_eq_true
+    , List.insert_of_not_mem
+    ] at h
+  cases h
+  · simp [show (7 : Col) ≠ 0 by decide] at cr_in_cage
+  rename_i h
+  cases h
+  · simp
+      [ show (7 : Col) ≠ 0 by decide
+      , show (7 : Col) ≠ 1 by decide
+      ] at cr_in_cage
+  rename_i h
+  cases h
+  · simp
+      [ show (7 : Col) ≠ 2 by decide
+      , show (7 : Col) ≠ 3 by decide
+      ] at cr_in_cage
+  rename_i h
+  cases h
+  · simp
+      [ show (7 : Col) ≠ 4 by decide
+      , show (7 : Col) ≠ 5 by decide
+      , show (7 : Col) ≠ 6 by decide
+      ] at cr_in_cage
+  rename_i h
+  cases h
+  · simp
+      [ show (7 : Col) ≠ 4 by decide
+      , show (7 : Col) ≠ 5 by decide
+      , show (7 : Col) ≠ 6 by decide
+      ] at cr_in_cage
+  rename_i h
+  cases h
+  · simp
+      [ show (7 : Col) ≠ 5 by decide
+      , show (7 : Col) ≠ 6 by decide
+      ] at cr_in_cage
+  rename_i h
+  cases h
+  · simp only
+      [ Finset.mem_insert
+      , Cell.mk.injEq
+      , show (7 : Col) ≠ 5 by decide
+      , false_and
+      , show (7 : Col) ≠ 6 by decide
+      , true_and
+      , Finset.mem_singleton
+      , false_or
+      ] at cr_in_cage
+    cases cr_in_cage <;> rename_i h <;> cases h <;> simp[hr]
+  rename_i h
+  cases h
+  · simp [show (7 : Col) ≠ 8 by decide] at cr_in_cage
+  rename_i h
+  cases h
