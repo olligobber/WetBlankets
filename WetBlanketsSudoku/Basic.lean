@@ -57,8 +57,21 @@ deriving instance DecidableEq for
   Box,
   Digit
 
--- instance {x : Nat} : OfNat Digit x where
---   ofNat :=
+instance : Fintype Row where
+  elems := Finset.image Row.mk Fintype.elems
+  complete := by
+    intro ⟨n⟩
+    have := @Fintype.complete (Fin 9) _ n
+    rw [Finset.mem_image]
+    use n
+
+instance : Fintype Col where
+  elems := Finset.image Col.mk Fintype.elems
+  complete := by
+    intro ⟨n⟩
+    have := @Fintype.complete (Fin 9) _ n
+    rw [Finset.mem_image]
+    use n
 
 def Solution : Type := Cell → Digit
 
@@ -332,3 +345,51 @@ lemma nine_negs : solution.negcells.card = 9 := by
     simp only [and_true]
     exact Finset.subset_univ negcell_rows
   exact le_antisymm atmost_nine atleast_nine
+
+lemma col_has_neg : ∀ c : Col, ∃ r : Row, ⟨c, r⟩ ∈ solution.negcells := by
+  intro col
+  let neg_col : (c : Cell) → c ∈ solution.negcells → Col :=
+    fun cell _ ↦ cell.col
+  have neg_col_inj :
+    ∀ (cell dell : Cell)
+      (hc : cell ∈ solution.negcells)
+      (hd : dell ∈ solution.negcells),
+      neg_col cell hc = neg_col dell hd → cell = dell := by
+        intro cell dell hc hd h₁
+        change cell.col = dell.col at h₁
+        by_contra h₂
+        exact (validsol.2.2.2.2.2.1 cell hc dell hd h₂).2.1 h₁
+  obtain ⟨cell, h₃, h₄⟩ := @Finset.surj_on_of_inj_on_of_card_le
+    Cell
+    Col
+    solution.negcells
+    Finset.univ
+    neg_col
+    (by simp)
+    neg_col_inj
+    (by
+      rw[nine_negs]
+      decide
+    )
+    col
+    (by simp)
+  use cell.row
+  rw[h₄]
+  exact h₃
+
+lemma cage_has_neg :
+  ∀ cage : wet_blankets.killercages,
+  ∃ cell ∈ cage.val.cells,
+  cell ∈ solution.negcells := by
+    intro ⟨cage, hcage⟩
+    obtain ⟨cell, in_cage, in_neg, _⟩ := (validsol.2.2.2.2.2.2 cage hcage).2
+    exact ⟨cell, in_cage, in_neg⟩
+
+lemma all_neg_in_cage :
+  ∀ cell ∈ solution.negcells,
+  ∃ cage ∈ wet_blankets.killercages,
+  cell ∈ cage.cells := by
+    intro cell is_neg
+    by_contra h
+    simp at h
+    sorry -- TODO
