@@ -411,3 +411,88 @@ lemma col_seven_neg : ⟨7, 2⟩ ∈ negs ∨ ⟨7, 3⟩ ∈ negs := by
     , Finset.mem_singleton
     ] at in_valid
   obtain h | h := in_valid <;> cases h <;> simp[hr]
+
+lemma col_three_neg : ⟨3, 2⟩ ∈ negs ∨ ⟨3, 3⟩ ∈ negs := by
+  obtain ⟨r, hr⟩ := col_has_neg 3
+  have in_cage_cell := all_neg_in_cage_cells hr
+  let valid_set : Finset Cell := cage_cells.filter (·.col = 3)
+  have in_valid : ⟨3, r⟩ ∈ valid_set := by
+    simp only [Finset.mem_filter, and_true, valid_set]
+    exact in_cage_cell
+  simp only
+    [show valid_set = {⟨3, 2⟩, ⟨3, 3⟩} by decide
+    , Finset.mem_insert
+    , Cell.mk.injEq
+    , true_and
+    , Finset.mem_singleton
+    ] at in_valid
+  obtain h | h := in_valid <;> cases h <;> simp[hr]
+
+lemma neg_x_wing : {⟨3, 2⟩, ⟨7, 3⟩} ⊆ negs ∨ {⟨3, 3⟩, ⟨7, 2⟩} ⊆ negs := by
+  obtain h₁ | h₁ := col_seven_neg <;>
+    obtain h₂ | h₂ := col_three_neg <;>
+    simp[Finset.subset_iff, h₁, h₂] <;>
+    have h₃ := validsol.2.2.2.2.2.1 _ h₁ _ h₂ (by decide) <;>
+    simp at h₃
+
+theorem l_neg : ⟨0, 4⟩ ∈ negs := by
+  obtain ⟨cage, cage_cells⟩ :
+    ∃ cage : cages, cage.val.cells = { ⟨0, 3⟩, ⟨0, 4⟩ } := by decide
+  obtain ⟨cell, cell_in_cage, cell_is_neg⟩ := cage_has_some_neg cage cage.prop
+  simp only
+    [ cage_cells
+    , Finset.mem_insert
+    , Finset.mem_singleton
+    ] at cell_in_cage
+  obtain h | h := cell_in_cage <;> cases h <;> try exact cell_is_neg
+  obtain h | h := neg_x_wing <;>
+    simp only
+      [ Finset.subset_iff
+      , Finset.mem_insert
+      , Finset.mem_singleton
+      , forall_eq_or_imp
+      , forall_eq
+      ] at h <;>
+    obtain ⟨h₁, h₂⟩ := h
+  · have := validsol.2.2.2.2.2.1 _ cell_is_neg _ h₂ (by decide)
+    simp at this
+  · have := validsol.2.2.2.2.2.1 _ cell_is_neg _ h₁ (by decide)
+    simp at this
+
+theorem c_neg : ⟨5, 5⟩ ∈ negs := by
+  obtain ⟨cage, cage_cells⟩ :
+    ∃ cage : cages,
+      cage.val.cells = { ⟨4, 4⟩, ⟨5, 4⟩, ⟨6, 4⟩, ⟨5, 5⟩ }
+      := by decide
+  obtain ⟨⟨c, r⟩, cell_in_cage, cell_is_neg⟩ := cage_has_some_neg cage cage.prop
+  have c_not_zero : c ≠ 0 := fun h ↦ by simp
+    [ h
+    , cage_cells
+    , show (0 : Col) ≠ 4 by decide
+    , show (0 : Col) ≠ 5 by decide
+    , show (0 : Col) ≠ 6 by decide
+    ] at cell_in_cage
+  have r_not_four : r ≠ 4 := by
+    have := validsol.2.2.2.2.2.1 _ cell_is_neg _ l_neg (by simp[c_not_zero])
+    simp only [ne_eq] at this
+    exact this.1
+  let valid_set := cage.val.cells.filter (·.row ≠ 4)
+  have : ⟨c, r⟩ ∈ valid_set := by
+    simp[valid_set, cell_in_cage, r_not_four]
+  simp only
+    [ne_eq
+    , cage_cells
+    , Finset.mem_filter
+    , Finset.mem_insert
+    , Cell.mk.injEq
+    , r_not_four
+    , and_false
+    , Finset.mem_singleton
+    , false_or
+    , not_false_eq_true
+    , and_true
+    , valid_set
+    ] at this
+  cases this.1
+  cases this.2
+  exact cell_is_neg
