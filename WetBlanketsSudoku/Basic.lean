@@ -2,6 +2,7 @@ import Mathlib.Data.Finset.Defs
 import Mathlib.Algebra.BigOperators.Group.Finset.Defs
 import Mathlib.Data.Finset.Card
 import Mathlib.Data.Fintype.Basic
+import Mathlib.Data.Finset.Union
 
 -- https://sudokupad.app/tdzmfngyfp
 
@@ -387,71 +388,26 @@ lemma all_neg_in_cage : ∀ cell ∈ negs, ∃ cage ∈ cages, cell ∈ cage.cel
   rw[← hcell] at this
   exact this
 
+def cage_cells : Finset Cell := cages.biUnion (·.cells)
+
+lemma all_neg_in_cage_cells : negs ⊆ cage_cells := by
+  intro cell hcell
+  change cell ∈ cages.biUnion (·.cells)
+  rw[Finset.mem_biUnion]
+  exact all_neg_in_cage cell hcell
+
 lemma col_seven_neg : ⟨7, 2⟩ ∈ negs ∨ ⟨7, 3⟩ ∈ negs := by
   obtain ⟨r, hr⟩ := col_has_neg 7
-  obtain ⟨cage, hcage, cr_in_cage⟩ := all_neg_in_cage ⟨7, r⟩ hr
-  cases hcage
-  · simp [show (7 : Col) ≠ 2 by decide] at cr_in_cage
-  rename_i h
+  have in_cage_cell := all_neg_in_cage_cells hr
+  let valid_set : Finset Cell := cage_cells.filter (·.col = 7)
+  have in_valid : ⟨7, r⟩ ∈ valid_set := by
+    simp only [Finset.mem_filter, and_true, valid_set]
+    exact in_cage_cell
   simp only
-    [ List.mem_cons
-    , KillerCage.mk.injEq
-    , reduceCtorEq
-    , and_false
-    , List.not_mem_nil
-    , or_self
-    , not_false_eq_true
-    , List.insert_of_not_mem
-    ] at h
-  cases h
-  · simp [show (7 : Col) ≠ 0 by decide] at cr_in_cage
-  rename_i h
-  cases h
-  · simp
-      [ show (7 : Col) ≠ 0 by decide
-      , show (7 : Col) ≠ 1 by decide
-      ] at cr_in_cage
-  rename_i h
-  cases h
-  · simp
-      [ show (7 : Col) ≠ 2 by decide
-      , show (7 : Col) ≠ 3 by decide
-      ] at cr_in_cage
-  rename_i h
-  cases h
-  · simp
-      [ show (7 : Col) ≠ 4 by decide
-      , show (7 : Col) ≠ 5 by decide
-      , show (7 : Col) ≠ 6 by decide
-      ] at cr_in_cage
-  rename_i h
-  cases h
-  · simp
-      [ show (7 : Col) ≠ 4 by decide
-      , show (7 : Col) ≠ 5 by decide
-      , show (7 : Col) ≠ 6 by decide
-      ] at cr_in_cage
-  rename_i h
-  cases h
-  · simp
-      [ show (7 : Col) ≠ 5 by decide
-      , show (7 : Col) ≠ 6 by decide
-      ] at cr_in_cage
-  rename_i h
-  cases h
-  · simp only
-      [ Finset.mem_insert
-      , Cell.mk.injEq
-      , show (7 : Col) ≠ 5 by decide
-      , false_and
-      , show (7 : Col) ≠ 6 by decide
-      , true_and
-      , Finset.mem_singleton
-      , false_or
-      ] at cr_in_cage
-    cases cr_in_cage <;> rename_i h <;> cases h <;> simp[hr]
-  rename_i h
-  cases h
-  · simp [show (7 : Col) ≠ 8 by decide] at cr_in_cage
-  rename_i h
-  cases h
+    [show valid_set = {⟨7, 2⟩, ⟨7, 3⟩} by decide
+    , Finset.mem_insert
+    , Cell.mk.injEq
+    , true_and
+    , Finset.mem_singleton
+    ] at in_valid
+  obtain h | h := in_valid <;> cases h <;> simp[hr]
