@@ -428,7 +428,7 @@ lemma col_three_neg : ⟨3, 2⟩ ∈ negs ∨ ⟨3, 3⟩ ∈ negs := by
     ] at in_valid
   obtain h | h := in_valid <;> cases h <;> simp[hr]
 
-lemma neg_x_wing : {⟨3, 2⟩, ⟨7, 3⟩} ⊆ negs ∨ {⟨3, 3⟩, ⟨7, 2⟩} ⊆ negs := by
+lemma neg_x_wing_one : {⟨3, 2⟩, ⟨7, 3⟩} ⊆ negs ∨ {⟨3, 3⟩, ⟨7, 2⟩} ⊆ negs := by
   obtain h₁ | h₁ := col_seven_neg <;>
     obtain h₂ | h₂ := col_three_neg <;>
     simp[Finset.subset_iff, h₁, h₂] <;>
@@ -445,7 +445,7 @@ theorem l_neg : ⟨0, 4⟩ ∈ negs := by
     , Finset.mem_singleton
     ] at cell_in_cage
   obtain h | h := cell_in_cage <;> cases h <;> try exact cell_is_neg
-  obtain h | h := neg_x_wing <;>
+  obtain h | h := neg_x_wing_one <;>
     simp only
       [ Finset.subset_iff
       , Finset.mem_insert
