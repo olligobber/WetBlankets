@@ -245,3 +245,35 @@ theorem c_neg : ⟨5, 5⟩ ∈ negs := by
   cases this.1
   cases this.2
   exact cell_is_neg
+
+theorem t_neg : ⟨3, 2⟩ ∈ negs := by
+  obtain h | h := neg_x_wing_one <;>
+    simp only
+      [ Finset.subset_iff
+      , Finset.mem_insert
+      , forall_eq_or_imp
+      ] at h
+  · exact h.1
+  · obtain ⟨h, _⟩ := h
+    have := validsol.2.2.2.2.2.1 _ h _ c_neg (by decide)
+    simp only
+      [ show Cell.box ⟨3, 3⟩ = Cell.box ⟨5, 5⟩ by decide
+      , ne_eq
+      , not_true_eq_false
+      , false_and
+      , and_false
+      ] at this
+
+theorem r_neg : ⟨7, 3⟩ ∈ negs := by
+  obtain h | h := neg_x_wing_one <;>
+    simp only
+      [ Finset.subset_iff
+      , Finset.mem_insert
+      , Finset.mem_singleton
+      , forall_eq_or_imp
+      , forall_eq
+      ] at h
+  · exact h.2
+  · obtain ⟨h, _⟩ := h
+    have := validsol.2.2.2.2.2.1 _ h _ t_neg (by decide)
+    simp at this
