@@ -1,9 +1,13 @@
 import Mathlib.Data.Finset.Card
 import Mathlib.Data.Finset.Union
 import WetBlankets.Puzzle
+import Mathlib.Algebra.BigOperators.Group.Finset.Basic
+import Mathlib.Data.Nat.Cast.Order.Basic
+import Mathlib.Algebra.Ring.Int.Defs
 
 def cages := wet_blankets.killercages
 noncomputable def negs := solution.negcells
+noncomputable def digit := solution.digit
 
 theorem br_neg : ⟨8, 6⟩ ∈ negs := by
   have ⟨cage, cageinpuzzle, cageset⟩ :
@@ -277,3 +281,53 @@ theorem r_neg : ⟨7, 3⟩ ∈ negs := by
   · obtain ⟨h, _⟩ := h
     have := validsol.2.2.2.2.2.1 _ h _ t_neg (by decide)
     simp at this
+
+lemma digit_val_of_nat {n : Nat} [h₁ : NeZero n] (h₂ : n < 10) :
+  Digit.val (OfNat.ofNat n) = n := by
+    change (n - 1) % 9 + 1 = n
+    rw[Nat.mod_eq_of_lt (by omega)]
+    rw[Nat.sub_one_add_one h₁.out]
+
+lemma l_cage_sum : ↑(digit ⟨0, 3⟩).val - ↑(digit ⟨0, 4⟩).val = (8 : ℤ) := by
+  let cage : KillerCage := ⟨{⟨0, 3⟩, ⟨0, 4⟩}, some 8⟩
+  have hcage : cage ∈ cages := by decide
+  have non_neg : ⟨0, 3⟩ ∉ negs := by
+    by_contra h
+    have := validsol.2.2.2.2.2.1 _ h _ l_neg (by decide)
+    simp at this
+  have sum_cage := (validsol.2.2.2.2.2.2 cage hcage).1
+  simp only [Option.all_some, decide_eq_true_eq, cage] at sum_cage
+  rw[Finset.sum_pair (by decide)] at sum_cage
+  unfold NegSolution.value at sum_cage
+  rw[← negs, ← digit] at sum_cage
+  simp only [non_neg, ↓reduceIte, l_neg] at sum_cage
+  exact sum_cage
+
+theorem digit04 : digit ⟨0, 4⟩ = 1 := by
+  have sum_cage := l_cage_sum
+  have ub : (↑(digit ⟨0, 3⟩).val : ℤ) < 10 := by
+    have := (digit ⟨0, 3⟩).single
+    rw[← @Nat.cast_lt ℤ] at this
+    exact this
+  rw[sub_eq_iff_eq_add] at sum_cage
+  simp only [sum_cage] at ub
+  rw[show (10 : ℤ) = 8 + 2 by decide, Int.add_lt_add_iff_left] at ub
+  simp at ub
+  let a := (digit ⟨0, 4⟩).val
+  have lb : a > 0 := (digit ⟨0, 4⟩).nonzero
+  rw[Digit.mk.injEq, digit_val_of_nat (by decide)]
+  change a = 1
+  omega
+
+theorem digit03 : digit ⟨0, 3⟩ = 9 := by
+  have sum_cage := l_cage_sum
+  simp only
+    [digit04
+    , show Digit.val 1 = 1 by decide
+    , Nat.cast_one
+    , sub_eq_iff_eq_add
+    , Int.reduceAdd
+    ] at sum_cage
+  rw[Digit.mk.injEq, digit_val_of_nat (by decide)]
+  rw[← @Nat.cast_ofNat ℤ 9, Nat.cast_inj] at sum_cage
+  exact sum_cage

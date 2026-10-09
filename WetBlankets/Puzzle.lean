@@ -47,6 +47,12 @@ structure Digit : Type where
   nonzero : val > 0
   single : val < 10
 
+instance {n : Nat} [NeZero n] : OfNat Digit n where
+  ofNat := by
+    refine ⟨(n - 1) % 9 + 1, by simp, ?_⟩
+    apply Nat.add_lt_add_right
+    exact Nat.mod_lt (n - 1) (by decide)
+
 deriving instance DecidableEq for
   Row,
   Col,
@@ -122,7 +128,7 @@ structure NegSolution where
 
 def NegSolution.value : NegSolution → Cell → Int := fun sol cell ↦
   if cell ∈ sol.negcells then
-    0 - (sol.digit cell).val
+    - (sol.digit cell).val
   else
     (sol.digit cell).val
 
@@ -148,7 +154,7 @@ structure KillerCage : Type where
 
 instance KillerCage.rule : NegRule KillerCage where
   satisfies cage sol :=
-    cage.total.all (cage.cells.sum sol.value = ·) ∧
+    cage.total.all (∑ x ∈ cage.cells, sol.value x = ·) ∧
     ∃ c ∈ cage.cells,
       c ∈ sol.negcells ∧
       ∀ d ∈ cage.cells, c ≠ d → d ∉ sol.negcells
