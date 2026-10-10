@@ -4,10 +4,12 @@ import WetBlankets.Puzzle
 import Mathlib.Algebra.BigOperators.Group.Finset.Basic
 import Mathlib.Data.Nat.Cast.Order.Basic
 import Mathlib.Algebra.Ring.Int.Defs
+import Mathlib.Algebra.BigOperators.Group.Finset.Piecewise
 
 def cages := wet_blankets.killercages
 noncomputable def negs := solution.negcells
 noncomputable def digit := solution.digit
+noncomputable def int_digit : Cell → ℤ := fun cell ↦ ↑(digit cell).val
 
 theorem br_neg : ⟨8, 6⟩ ∈ negs := by
   have ⟨cage, cageinpuzzle, cageset⟩ :
@@ -331,3 +333,79 @@ theorem digit03 : digit ⟨0, 3⟩ = 9 := by
   rw[Digit.mk.injEq, digit_val_of_nat (by decide)]
   rw[← @Nat.cast_ofNat ℤ 9, Nat.cast_inj] at sum_cage
   exact sum_cage
+
+lemma col_one_neg : ⟨1, 7⟩ ∈ negs ∨ ⟨1, 8⟩ ∈ negs := by
+  obtain ⟨r, hr⟩ := col_has_neg 1
+  have in_cage_cell := all_neg_in_cage_cells hr
+  let valid_set : Finset Cell := cage_cells.filter (·.col = 1)
+  have in_valid : ⟨1, r⟩ ∈ valid_set := by
+    simp only [Finset.mem_filter, and_true, valid_set]
+    exact in_cage_cell
+  simp only
+    [show valid_set = {⟨1, 7⟩, ⟨1, 8⟩} by decide
+    , Finset.mem_insert
+    , Cell.mk.injEq
+    , true_and
+    , Finset.mem_singleton
+    ] at in_valid
+  obtain h | h := in_valid <;> cases h <;> simp[hr]
+
+lemma cage_total_pos_minus_neg : ∀ cage : cages, cage.val.total.all
+  ( (cage.val.cells.erase (cage_neg cage)).sum int_digit -
+    int_digit (cage_neg cage) =
+    ·) := by
+  intro ⟨⟨cage_cells, cage_total⟩, in_puzzle⟩
+  cases cage_total <;>
+    simp only [Option.all_none, Option.all_some, decide_eq_true_eq]
+  rename_i cage_total
+  have ⟨is_total, unique_neg⟩ :=
+    validsol.2.2.2.2.2.2 ⟨cage_cells, some cage_total⟩ in_puzzle
+  obtain ⟨neg_cell, neg_in_cage, neg_is_neg, unique_neg⟩ := unique_neg
+  simp only at neg_in_cage
+  have neg_cell_is_cage_neg :
+    neg_cell = cage_neg ⟨⟨cage_cells, cage_total⟩, in_puzzle⟩ := by
+      by_contra h
+      exact unique_neg
+        (cage_neg ⟨⟨cage_cells, cage_total⟩, in_puzzle⟩)
+        (cage_has_neg ⟨⟨cage_cells, cage_total⟩, in_puzzle⟩)
+        h
+        (cage_neg ⟨⟨cage_cells, cage_total⟩, in_puzzle⟩).prop
+  rw[← neg_cell_is_cage_neg]
+  simp only [Option.all_some, decide_eq_true_eq] at is_total
+  rw
+    [ ← Finset.add_sum_erase _ _ neg_in_cage
+    , NegSolution.value
+    , ← digit
+    , ← int_digit
+    ] at is_total
+  simp only [neg_is_neg, ↓reduceIte] at is_total
+  conv at is_total =>
+    lhs
+    rhs
+    rhs
+    intro
+    rw [NegSolution.value, ← digit, ← int_digit]
+  have erase_not_neg :
+    ∀ x ∈ cage_cells.erase neg_cell, x ∉ solution.negcells := by
+      intro cell cell_in_erase cell_is_neg
+      simp only [Finset.mem_erase, ne_eq] at cell_in_erase
+      obtain ⟨cell_not_neg, cell_in_cage⟩ := cell_in_erase
+      change cell ≠ neg_cell at cell_not_neg
+      symm at cell_not_neg
+      exact unique_neg cell cell_in_cage cell_not_neg cell_is_neg
+  rw[Finset.sum_ite_of_false erase_not_neg] at is_total
+  rw[Int.sub_eq_add_neg, Int.add_comm]
+  exact is_total
+
+lemma bl_cage_digits :
+  {digit ⟨0, 7⟩, digit ⟨0, 8⟩} = ({2, 3} : Finset Digit) ∧
+  {digit ⟨1, 7⟩, digit ⟨1, 8⟩} = ({1, 9} : Finset Digit) := by
+    let cage_cells : Finset Cell := {⟨0, 7⟩, ⟨0, 8⟩, ⟨1, 7⟩, ⟨1, 8⟩}
+    let cage : KillerCage := ⟨cage_cells, some (-3)⟩
+    let neg_cell := cage_neg ⟨cage, by decide⟩
+    let pos_cells := cage_cells.erase neg_cell
+    have sum := cage_total_pos_minus_neg ⟨cage, by decide⟩
+    unfold cage at sum
+    simp at sum
+    change pos_cells.sum int_digit - int_digit neg_cell = -3 at sum
+    sorry

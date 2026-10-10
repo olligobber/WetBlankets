@@ -154,7 +154,7 @@ structure KillerCage : Type where
 
 instance KillerCage.rule : NegRule KillerCage where
   satisfies cage sol :=
-    cage.total.all (∑ x ∈ cage.cells, sol.value x = ·) ∧
+    cage.total.all (cage.cells.sum sol.value = ·) ∧
     ∃ c ∈ cage.cells,
       c ∈ sol.negcells ∧
       ∀ d ∈ cage.cells, c ≠ d → d ∉ sol.negcells
