@@ -400,9 +400,13 @@ lemma cage_total_pos_minus_neg : ∀ cage : cages, cage.val.total.all
   rw[Int.sub_eq_add_neg, Int.add_comm]
   exact is_total
 
+-- Note that `decide` does not like merge sort,
+-- so use `decide_cbv` or `native_decide` instead
 def take_min {t : Type} [LinearOrder t] : ℕ → Multiset t → Multiset t
   | n, s => s.sort.take n
 
+-- Note that `decide` does not like merge sort,
+-- so use `decide_cbv` or `native_decide` instead
 def take_max {t : Type} [LinearOrder t] : ℕ → Multiset t → Multiset t
   | n, s => s.sort.reverse.take n
 
