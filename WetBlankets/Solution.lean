@@ -5,6 +5,9 @@ import Mathlib.Algebra.BigOperators.Group.Finset.Basic
 import Mathlib.Data.Nat.Cast.Order.Basic
 import Mathlib.Algebra.Ring.Int.Defs
 import Mathlib.Algebra.BigOperators.Group.Finset.Piecewise
+import Mathlib.Data.Finset.Max
+import Mathlib.Algebra.Order.Monoid.Defs
+import Mathlib.Data.Multiset.Sort
 
 def cages := wet_blankets.killercages
 noncomputable def negs := solution.negcells
@@ -396,6 +399,39 @@ lemma cage_total_pos_minus_neg : ∀ cage : cages, cage.val.total.all
   rw[Finset.sum_ite_of_false erase_not_neg] at is_total
   rw[Int.sub_eq_add_neg, Int.add_comm]
   exact is_total
+
+def take_min {t : Type} [LinearOrder t] : ℕ → Multiset t → Multiset t
+  | n, s => s.sort.take n
+
+def take_max {t : Type} [LinearOrder t] : ℕ → Multiset t → Multiset t
+  | n, s => s.sort.reverse.take n
+
+lemma sum_ge_min_of_superset {t : Type} [LinearOrder t] [AddCommMonoid t]
+  [IsOrderedCancelAddMonoid t] :
+    ∀ (set superset : Multiset t) (h : set ≤ superset),
+      set.sum ≥ (take_min set.card superset).sum := by
+  have : ∀ (n : ℕ) (set superset : Multiset t) (h₁ : set.card = n)
+    (h₂ : set ≤ superset), set.sum ≥ (take_min n superset).sum := fun n ↦ by
+      induction n with
+      | zero =>
+        intro set superset h _
+        simp at h
+        cases h
+        unfold take_min
+        simp
+      | succ n ih =>
+        intro set superset h₁ h₂
+        have set_nonempty : set.toFinset.Nonempty := by
+          simp
+          intro h
+          cases h
+          simp at h₁
+        let max_set : t := set.toFinset.max' set_nonempty
+        let small_set := set.erase max_set
+        have small_set_card : small_set.card = n := by
+          sorry
+        sorry
+  sorry
 
 lemma bl_cage_digits :
   {digit ⟨0, 7⟩, digit ⟨0, 8⟩} = ({2, 3} : Finset Digit) ∧
