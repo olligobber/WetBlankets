@@ -411,7 +411,7 @@ def take_max {t : Type} [LinearOrder t] : ℕ → Multiset t → Multiset t
   | n, s => s.sort.reverse.take n
 
 lemma sum_ge_min_of_superset {t : Type} [LinearOrder t] [AddCommMonoid t]
-   [AddLeftMono t] [AddRightMono t] :
+   [IsOrderedAddMonoid t] :
     ∀ (set superset : Multiset t) (h : set ≤ superset),
       (take_min set.card superset).sum ≤ set.sum := by
   have : ∀ (n : ℕ) (set superset : Multiset t) (h₁ : set.card = n)
@@ -472,9 +472,6 @@ lemma sum_ge_min_of_superset {t : Type} [LinearOrder t] [AddCommMonoid t]
         apply add_le_add small_set_sum
         simp
         sorry
-
-
-
   sorry
 
 lemma bl_cage_digits :
