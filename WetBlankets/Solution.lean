@@ -411,30 +411,70 @@ def take_max {t : Type} [LinearOrder t] : ℕ → Multiset t → Multiset t
   | n, s => s.sort.reverse.take n
 
 lemma sum_ge_min_of_superset {t : Type} [LinearOrder t] [AddCommMonoid t]
-  [IsOrderedCancelAddMonoid t] :
+   [AddLeftMono t] [AddRightMono t] :
     ∀ (set superset : Multiset t) (h : set ≤ superset),
-      set.sum ≥ (take_min set.card superset).sum := by
+      (take_min set.card superset).sum ≤ set.sum := by
   have : ∀ (n : ℕ) (set superset : Multiset t) (h₁ : set.card = n)
-    (h₂ : set ≤ superset), set.sum ≥ (take_min n superset).sum := fun n ↦ by
+    (h₂ : set ≤ superset), (take_min n superset).sum ≤ set.sum := fun n ↦ by
       induction n with
       | zero =>
         intro set superset h _
-        simp at h
+        simp only [Multiset.card_eq_zero] at h
         cases h
         unfold take_min
         simp
       | succ n ih =>
         intro set superset h₁ h₂
         have set_nonempty : set.toFinset.Nonempty := by
-          simp
+          simp only [Multiset.toFinset_nonempty]
           intro h
           cases h
           simp at h₁
         let max_set : t := set.toFinset.max' set_nonempty
+        have max_set_in_set : max_set ∈ set := by
+          have := Finset.max'_mem set.toFinset set_nonempty
+          simp only [Multiset.mem_toFinset] at this
+          exact this
         let small_set := set.erase max_set
+        have set_eq_max_plus_set :=
+          Multiset.add_singleton_eq_iff.mpr ⟨max_set_in_set, rfl⟩
         have small_set_card : small_set.card = n := by
-          sorry
+          rw[← set_eq_max_plus_set] at h₁
+          simp only
+            [ Multiset.card_add
+            , Multiset.card_singleton
+            , Nat.add_right_cancel_iff
+            ] at h₁
+          exact h₁
+        have small_set_in_set : small_set ≤ superset := by
+          trans set
+          · exact Multiset.erase_le _ _
+          · exact h₂
+        have small_set_sum :=
+          ih small_set superset small_set_card small_set_in_set
+        rw[← set_eq_max_plus_set]
+        unfold take_min
+        simp only
+          [ Multiset.sum_coe
+          , Multiset.sum_add
+          , Multiset.sum_singleton
+          , ge_iff_le
+          ]
+        rw
+          [ List.take_succ_eq_append_getElem (by
+            simp only [Multiset.length_sort]
+            apply Nat.lt_of_succ_le
+            simp only [Nat.succ_eq_add_one, ← h₁]
+            exact Multiset.card_le_card h₂
+          )
+          , List.sum_append
+          ]
+        apply add_le_add small_set_sum
+        simp
         sorry
+
+
+
   sorry
 
 lemma bl_cage_digits :
