@@ -8,6 +8,7 @@ import Mathlib.Algebra.BigOperators.Group.Finset.Piecewise
 import Mathlib.Data.Finset.Max
 import Mathlib.Algebra.Order.Monoid.Defs
 import Mathlib.Data.Multiset.Sort
+import Mathlib.Order.Defs.LinearOrder
 
 def cages := wet_blankets.killercages
 noncomputable def negs := solution.negcells
@@ -446,12 +447,12 @@ lemma sum_ge_min_of_superset {t : Type} [LinearOrder t] [AddCommMonoid t]
             , Nat.add_right_cancel_iff
             ] at h₁
           exact h₁
-        have small_set_in_set : small_set ≤ superset := by
+        have small_set_in_superset : small_set ≤ superset := by
           trans set
           · exact Multiset.erase_le _ _
           · exact h₂
         have small_set_sum :=
-          ih small_set superset small_set_card small_set_in_set
+          ih small_set superset small_set_card small_set_in_superset
         rw[← set_eq_max_plus_set]
         unfold take_min
         simp only
@@ -470,7 +471,46 @@ lemma sum_ge_min_of_superset {t : Type} [LinearOrder t] [AddCommMonoid t]
           , List.sum_append
           ]
         apply add_le_add small_set_sum
-        simp
+        simp only [List.sum_cons, List.sum_nil, add_zero]
+        have max_ge_small_set : ∀ x ∈ small_set, x ≤ max_set := by
+          intro x hx
+          apply Finset.le_max' set.toFinset x
+          simp only [Multiset.mem_toFinset]
+          apply Multiset.erase_subset
+          exact hx
+        have : small_set.sort.Sublist superset.sort := by
+          let small_set_list := small_set.toList
+          let superset_list := superset.toList
+          rw
+            [ ← Multiset.coe_toList small_set
+            , ← Multiset.coe_toList superset
+            , Multiset.coe_sort
+            , Multiset.coe_sort
+            ]
+          apply @List.sublist_of_subperm_of_pairwise
+            _ (fun a b ↦ decide <| a ≤ b) _ _
+          · trans small_set.toList
+            · apply List.Perm.subperm
+              apply List.mergeSort_perm
+            trans superset.toList
+            · rw[← Multiset.coe_le]
+              simp only [Multiset.coe_toList]
+              exact small_set_in_superset
+            · apply List.Perm.subperm
+              symm
+              apply List.mergeSort_perm
+          · apply List.pairwise_mergeSort
+            · simp only [decide_eq_true_eq]
+              exact @le_trans t _
+            · simp only [Bool.or_eq_true, decide_eq_true_eq]
+              exact LinearOrder.le_total
+          · apply List.pairwise_mergeSort
+            · simp only [decide_eq_true_eq]
+              exact @le_trans t _
+            · simp only [Bool.or_eq_true, decide_eq_true_eq]
+              exact LinearOrder.le_total
+        have : ∃ i : Fin superset.card, n ≤ i ∧ superset.sort[i] = max_set
+          := by sorry
         sorry
   sorry
 
