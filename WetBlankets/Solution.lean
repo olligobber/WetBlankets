@@ -411,7 +411,25 @@ def take_min {t : Type} [LinearOrder t] : ℕ → Multiset t → Multiset t
 def take_max {t : Type} [LinearOrder t] : ℕ → Multiset t → Multiset t
   | n, s => s.sort.reverse.take n
 
-lemma sum_ge_min_of_superset {t : Type} [LinearOrder t] [AddCommMonoid t]
+lemma take_min_le {t : Type} [LinearOrder t] {n : ℕ} {s : Multiset t} :
+  take_min n s ≤ s := by
+    conv =>
+      rhs
+      rw[← Multiset.sort_eq s LE.le]
+    unfold take_min
+    simp only
+    rw[Multiset.coe_le]
+    refine ⟨_, by rfl, ?_⟩
+    apply List.take_sublist
+
+@[simp]
+lemma take_min_card {t : Type} [LinearOrder t] {n : ℕ} {s : Multiset t}
+  (h : n ≤ s.card) : (take_min n s).card = n := by
+    unfold take_min
+    simp[h]
+
+
+lemma sum_min_superset_le_sum {t : Type} [LinearOrder t] [AddCommMonoid t]
    [IsOrderedAddMonoid t] :
     ∀ (set superset : Multiset t) (_ : set ≤ superset),
       (take_min set.card superset).sum ≤ set.sum := by
@@ -578,6 +596,76 @@ lemma sum_ge_min_of_superset {t : Type} [LinearOrder t] [AddCommMonoid t]
             hi₁
         · simp[hi₁]
   exact fun set superset ↦ this (set.card) set superset (by rfl)
+
+lemma subset_eq_take_min_of_sum_eq {t : Type} [LinearOrder t]
+  [AddCancelCommMonoid t] [IsOrderedAddMonoid t] :
+    ∀ (set superset : Multiset t) (_ : set ≤ superset),
+      (take_min set.card superset).sum = set.sum →
+        set = take_min set.card superset := by
+  have : ∀ n : ℕ, ∀ (set superset : Multiset t) (_ : set.card = n)
+    (_ : set ≤ superset), (take_min set.card superset).sum = set.sum →
+      set = take_min set.card superset := fun n ↦ by
+    induction n with
+    | zero =>
+      intro set superset h₁ h₂ h₃
+      simp at h₁
+      unfold take_min
+      simp[h₁]
+    | succ n ih =>
+      intro set superset set_card set_le_superset set_sum
+      have superset_card : n + 1 ≤ superset.card := by
+        rw[← set_card]
+        exact Multiset.card_le_card set_le_superset
+      have set_finset_nonempty : set.toFinset.Nonempty := by
+        simp
+        intro h
+        simp[h] at set_card
+      let min_set : t := set.toFinset.min' set_finset_nonempty
+      have min_in_set : min_set ∈ set := by
+        unfold min_set
+        rw[← Multiset.mem_toFinset]
+        simp[Finset.min'_mem]
+      have min_in_superset : min_set ∈ superset :=
+        Multiset.mem_of_le set_le_superset min_in_set
+      let small_set : Multiset t := set.erase min_set
+      have small_set_card : small_set.card = n := by
+        rw[show n = set.card.pred by simp[set_card]]
+        exact Multiset.card_erase_of_mem min_in_set
+      let small_superset : Multiset t := superset.erase min_set
+      have small_superset_card : n ≤ small_superset.card := by
+        rw[Multiset.card_erase_of_mem min_in_superset]
+        simp
+        omega
+      have := ih
+        small_set
+        small_superset
+        small_set_card
+        (Multiset.erase_le_erase _ set_le_superset)
+        (by
+          have : set.sum = min_set + small_set.sum := by
+            unfold small_set
+            rw[← Multiset.cons_erase min_in_set]
+            simp
+          apply IsLeftCancelAdd.add_left_cancel min_set
+          simp only []
+          rw[← this, ← set_sum, set_card, small_set_card]
+          have := sum_min_superset_le_sum
+            (take_min n small_superset)
+            superset
+            (Trans.trans take_min_le (superset.erase_le min_set))
+          simp[take_min_card small_superset_card] at this
+
+          have := sum_min_superset_le_sum
+            small_set
+            small_superset
+            (Multiset.erase_le_erase _ set_le_superset)
+          have := sum_min_superset_le_sum
+            set
+            superset
+            set_le_superset
+
+        )
+
 
 lemma bl_cage_digits :
   {digit ⟨0, 7⟩, digit ⟨0, 8⟩} = ({2, 3} : Finset Digit) ∧
