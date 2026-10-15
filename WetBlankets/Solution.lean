@@ -620,6 +620,7 @@ lemma subset_eq_take_min_of_sum_eq {t : Type} [LinearOrder t]
         simp
         intro h
         simp[h] at set_card
+      -- idk if this is the best choice of element
       let min_set : t := set.toFinset.min' set_finset_nonempty
       have min_in_set : min_set ∈ set := by
         unfold min_set
@@ -654,7 +655,7 @@ lemma subset_eq_take_min_of_sum_eq {t : Type} [LinearOrder t]
             superset
             (Trans.trans take_min_le (superset.erase_le min_set))
           simp[take_min_card small_superset_card] at this
-
+          -- idk this seems hard to prove
           have := sum_min_superset_le_sum
             small_set
             small_superset
