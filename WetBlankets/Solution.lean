@@ -582,9 +582,8 @@ lemma nth_smallest_superset_le_max_set {t : Type} [LinearOrder t] :
   · simp[hi₁]
 
 lemma sum_min_superset_le_sum {t : Type} [LinearOrder t] [AddCommMonoid t]
-   [IsOrderedAddMonoid t] :
-    ∀ (set superset : Multiset t) (_ : set ≤ superset),
-      (take_min set.card superset).sum ≤ set.sum := by
+  [IsOrderedAddMonoid t] : ∀ (set superset : Multiset t) (_ : set ≤ superset),
+    (take_min set.card superset).sum ≤ set.sum := by
   have : ∀ (n : ℕ) (set superset : Multiset t) (h₁ : set.card = n)
     (h₂ : set ≤ superset), (take_min n superset).sum ≤ set.sum := fun n ↦ by
       induction n with
