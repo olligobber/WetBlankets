@@ -672,7 +672,7 @@ lemma subset_eq_take_min_of_sum_eq {t : Type} [LinearOrder t]
         rw[← set_card]
         exact Multiset.card_le_card set_le_superset
       have set_finset_nonempty : set.toFinset.Nonempty := by
-        simp
+        simp only [Multiset.toFinset_nonempty, ne_eq]
         intro h
         simp[h] at set_card
       let max_set : t := set.toFinset.max' set_finset_nonempty
@@ -694,7 +694,7 @@ lemma subset_eq_take_min_of_sum_eq {t : Type} [LinearOrder t]
       have h :
         nth_smallest = max_set ∧ (take_min n superset).sum = small_set.sum := by
           unfold take_min at set_sum
-          simp at set_sum
+          simp only [Multiset.sum_coe] at set_sum
           rw
             [ show set.sum = max_set + small_set.sum by
               unfold small_set
@@ -708,7 +708,7 @@ lemma subset_eq_take_min_of_sum_eq {t : Type} [LinearOrder t]
               omega
             )
           rw[this, List.sum_append] at set_sum
-          simp at set_sum
+          simp only [List.sum_cons, List.sum_nil, add_zero] at set_sum
           change (take_min n superset).sum + nth_smallest
             = max_set + small_set.sum at set_sum
           have h₁ := sum_min_superset_le_sum
@@ -721,7 +721,7 @@ lemma subset_eq_take_min_of_sum_eq {t : Type} [LinearOrder t]
             superset
             (by by_contra h; simp[h] at set_card)
             set_le_superset
-          simp[set_card] at h₂
+          simp only [set_card, Nat.add_one_sub_one] at h₂
           change nth_smallest ≤ max_set at h₂
           obtain h₁ | h₁ := lt_or_eq_of_le h₁ <;>
             obtain h₂ | h₂ := lt_or_eq_of_le h₂
@@ -738,13 +738,13 @@ lemma subset_eq_take_min_of_sum_eq {t : Type} [LinearOrder t]
           · conv at set_sum =>
               rhs
               rw[add_comm]
-            simp[h₂] at set_sum
+            simp only [h₂, add_left_inj] at set_sum
             by_contra
             exact ne_of_lt h₁ set_sum
           · conv at set_sum =>
               rhs
               rw[add_comm]
-            simp[h₁] at set_sum
+            simp only [h₁, add_right_inj] at set_sum
             by_contra
             exact ne_of_lt h₂ set_sum
           · exact ⟨h₂, h₁⟩
@@ -755,8 +755,28 @@ lemma subset_eq_take_min_of_sum_eq {t : Type} [LinearOrder t]
         small_set_card
         small_set_le_superset
         (by simp[small_set_card, take_n_sum_eq_small_set_sum])
-      -- Should be easy from here
-      sorry
+      rw[small_set_card] at this
+      unfold take_min
+      simp only
+      rw
+        [ set_card
+        , show set = max_set ::ₘ small_set by
+          symm
+          apply Multiset.cons_erase max_in_set
+        , this
+        ]
+      have := List.take_succ_eq_append_getElem
+        (show n < superset.sort.length by
+          simp
+          omega
+        )
+      rw[this, Multiset.coe_eq_coe.mpr List.perm_append_comm]
+      simp only [List.cons_append, List.nil_append]
+      rw[← Multiset.cons_coe]
+      congr
+      symm
+      exact nth_smallest_eq_max_set
+  exact fun set superset ↦ this (set.card) set superset (by rfl)
 
 lemma bl_cage_digits :
   {digit ⟨0, 7⟩, digit ⟨0, 8⟩} = ({2, 3} : Finset Digit) ∧
