@@ -428,6 +428,158 @@ lemma take_min_card {t : Type} [LinearOrder t] {n : ℕ} {s : Multiset t}
     unfold take_min
     simp[h]
 
+lemma nth_smallest_superset_le_max_set {t : Type} [LinearOrder t] :
+  ∀ (set superset : Multiset t) (h₁ : set ≠ 0) (h₂ : set ≤ superset),
+    superset.sort[set.card - 1]'(by
+      apply lt_of_lt_of_le
+      · apply Nat.sub_one_lt
+        simp[h₁]
+      · simp[Multiset.card_le_card h₂]
+    ) ≤
+    set.toFinset.max' (by simp[h₁]) := by
+  intro set superset set_nonempty set_le_superset
+  let max_set := set.toFinset.max' (by simp[set_nonempty])
+  conv =>
+    rhs
+    change max_set
+  have max_last_sorted :
+    set.sort[set.card - 1]'(by
+      simp only [Multiset.length_sort]
+      apply Nat.sub_one_lt
+      simp[set_nonempty]
+    ) = max_set := by
+      apply le_antisymm
+      · apply Finset.le_max'
+        simp only [Multiset.mem_toFinset]
+        have := @List.getElem_mem _ set.sort (set.card - 1)
+          (by
+            simp only [Multiset.length_sort]
+            apply Nat.sub_one_lt
+            simp[set_nonempty]
+          )
+        rw[Multiset.mem_sort] at this
+        exact this
+      · apply Finset.max'_le
+        simp only [Multiset.mem_toFinset]
+        intro x hx
+        obtain ⟨i, hi₁, hi₂⟩ :=
+          List.getElem_of_mem (show x ∈ set.sort by simp[hx])
+        rw[← hi₂]
+        obtain h | h | h := lt_trichotomy i (set.card - 1)
+        · exact List.pairwise_iff_getElem.mp
+            (set.pairwise_sort LE.le)
+            i
+            (set.card - 1)
+            hi₁
+            (by
+              simp only [Multiset.length_sort]
+              apply Nat.sub_one_lt
+              simp[set_nonempty]
+            )
+            h
+        · simp[h]
+        · simp at hi₁
+          omega
+  have sort_sublist : set.sort.Sublist superset.sort := by
+    rw
+      [ ← Multiset.coe_toList set
+      , ← Multiset.coe_toList superset
+      , Multiset.coe_sort
+      , Multiset.coe_sort
+      ]
+    apply @List.sublist_of_subperm_of_pairwise
+      _ (fun a b ↦ decide <| a ≤ b) _ _
+    · trans set.toList
+      · apply List.Perm.subperm
+        apply List.mergeSort_perm
+      trans superset.toList
+      · rw[← Multiset.coe_le]
+        simp only [Multiset.coe_toList]
+        exact set_le_superset
+      · apply List.Perm.subperm
+        symm
+        apply List.mergeSort_perm
+    · apply List.pairwise_mergeSort
+      · simp only [decide_eq_true_eq]
+        exact @le_trans t _
+      · simp only [Bool.or_eq_true, decide_eq_true_eq]
+        exact LinearOrder.le_total
+    · apply List.pairwise_mergeSort
+      · simp only [decide_eq_true_eq]
+        exact @le_trans t _
+      · simp only [Bool.or_eq_true, decide_eq_true_eq]
+        exact LinearOrder.le_total
+  have :
+    ∃ i : Fin superset.card, set.card - 1 ≤ i ∧ superset.sort[i] = max_set := by
+      obtain ⟨is, h₃, h₄⟩ := List.sublist_eq_map_getElem sort_sublist
+      have is_len : is.length = set.card := by
+        trans set.sort.length
+        · rw[h₃]
+          simp
+        · simp
+      refine
+        ⟨ Fin.cast
+          (by simp)
+          (is[set.card - 1]'(by
+            simp only [is_len]
+            apply Nat.sub_one_lt
+            simp[set_nonempty]
+          ))
+        , ?_
+        , ?_
+        ⟩
+      · have : ∀ j : Fin is.length, j.val ≤ is[j].val := by
+          intro ⟨j, hj⟩
+          induction j
+          · simp
+          · rename_i k hk
+            have hk := hk (by omega)
+            simp
+            have := List.pairwise_iff_getElem.mp
+              h₄
+              k
+              (k + 1)
+              (by omega)
+              hj
+              (by simp)
+            simp at hk
+            omega
+        have := this
+          ⟨ set.card - 1
+          , by simp only [is_len]; apply Nat.sub_one_lt; simp[set_nonempty]
+          ⟩
+        simp at this
+        simp[this]
+      · rw[← max_last_sorted]
+        trans
+          (is.map (fun x ↦ superset.sort[x]'(x.prop)))[set.card - 1]'(by
+            simp only [Fin.getElem_fin, List.length_map, is_len]
+            apply Nat.sub_one_lt
+            simp[set_nonempty]
+          )
+        · simp
+        · congr
+          symm
+          exact h₃
+  obtain ⟨i, hi₁, hi₂⟩ := this
+  rw[← hi₂]
+  obtain hi₁ | hi₁ := lt_or_eq_of_le hi₁
+  · exact List.pairwise_iff_getElem.mp
+      (superset.pairwise_sort LE.le)
+      (set.card - 1)
+      i
+      (by
+        apply Nat.lt_of_succ_le
+        simp only
+          [ Nat.succ_eq_add_one
+          , Nat.sub_one_add_one (show set.card ≠ 0 by simp[set_nonempty])
+          , Multiset.length_sort
+          ]
+        exact Multiset.card_le_card set_le_superset
+      )
+      (by simp[i.prop])
+      hi₁
+  · simp[hi₁]
 
 lemma sum_min_superset_le_sum {t : Type} [LinearOrder t] [AddCommMonoid t]
    [IsOrderedAddMonoid t] :
@@ -491,110 +643,13 @@ lemma sum_min_superset_le_sum {t : Type} [LinearOrder t] [AddCommMonoid t]
           ]
         apply add_le_add small_set_sum
         simp only [List.sum_cons, List.sum_nil, add_zero]
-        have max_last_sorted : set.sort[n]'(by simp[h₁]) = max_set := by
-          apply le_antisymm
-          · apply Finset.le_max'
-            simp only [Multiset.mem_toFinset]
-            have := @List.getElem_mem _ set.sort n (by simp[h₁])
-            rw[Multiset.mem_sort] at this
-            exact this
-          · apply Finset.max'_le
-            simp only [Multiset.mem_toFinset]
-            intro x hx
-            obtain ⟨i, hi₁, hi₂⟩ :=
-              List.getElem_of_mem (show x ∈ set.sort by simp[hx])
-            rw[← hi₂]
-            obtain h | h | h := lt_trichotomy i n
-            · have h' := List.pairwise_iff_getElem.mp
-                (set.pairwise_sort (fun a b ↦ decide (a ≤ b)))
-                i
-                n
-                hi₁
-                (by simp[h₁])
-                h
-              simp only [decide_eq_true_eq] at h'
-              exact h'
-            · simp[h]
-            · simp[h₁] at hi₁
-              omega
-        have sort_sublist : set.sort.Sublist superset.sort := by
-          rw
-            [ ← Multiset.coe_toList set
-            , ← Multiset.coe_toList superset
-            , Multiset.coe_sort
-            , Multiset.coe_sort
-            ]
-          apply @List.sublist_of_subperm_of_pairwise
-            _ (fun a b ↦ decide <| a ≤ b) _ _
-          · trans set.toList
-            · apply List.Perm.subperm
-              apply List.mergeSort_perm
-            trans superset.toList
-            · rw[← Multiset.coe_le]
-              simp only [Multiset.coe_toList]
-              exact h₂
-            · apply List.Perm.subperm
-              symm
-              apply List.mergeSort_perm
-          · apply List.pairwise_mergeSort
-            · simp only [decide_eq_true_eq]
-              exact @le_trans t _
-            · simp only [Bool.or_eq_true, decide_eq_true_eq]
-              exact LinearOrder.le_total
-          · apply List.pairwise_mergeSort
-            · simp only [decide_eq_true_eq]
-              exact @le_trans t _
-            · simp only [Bool.or_eq_true, decide_eq_true_eq]
-              exact LinearOrder.le_total
-        have : ∃ i : Fin superset.card, n ≤ i ∧ superset.sort[i] = max_set := by
-          obtain ⟨is, h₃, h₄⟩ := List.sublist_eq_map_getElem sort_sublist
-          have is_len : is.length = n+1 := by
-            trans set.sort.length
-            · rw[h₃]
-              simp
-            · simp[h₁]
-          refine ⟨Fin.cast (by simp) (is[n]'(by simp[is_len])), ?_, ?_⟩
-          · have : ∀ j : Fin is.length, j.val ≤ is[j].val := by
-              intro ⟨j, hj⟩
-              induction j
-              · simp
-              · rename_i k hk
-                have hk := hk (by omega)
-                simp
-                have := List.pairwise_iff_getElem.mp
-                  h₄
-                  k
-                  (k + 1)
-                  (by omega)
-                  hj
-                  (by simp)
-                simp at hk
-                omega
-            have := this ⟨n, by simp[is_len]⟩
-            simp at this
-            simp[this]
-          · rw[← max_last_sorted]
-            trans
-              (is.map (fun x ↦ superset.sort[x]'(x.prop)))[n]'(by simp[is_len])
-            · simp
-            · congr
-              symm
-              exact h₃
-        obtain ⟨i, hi₁, hi₂⟩ := this
-        rw[← hi₂]
-        obtain hi₁ | hi₁ := lt_or_eq_of_le hi₁
-        · exact List.pairwise_iff_getElem.mp
-            (superset.pairwise_sort LE.le)
-            n
-            i
-            (by
-              apply Nat.lt_of_succ_le
-              simp only [Nat.succ_eq_add_one, ← h₁, Multiset.length_sort]
-              exact Multiset.card_le_card h₂
-            )
-            (by simp[i.prop])
-            hi₁
-        · simp[hi₁]
+        have := nth_smallest_superset_le_max_set
+          set
+          superset
+          (by by_contra h; simp[h] at h₁)
+          h₂
+        simp only [h₁, Nat.add_one_sub_one] at this
+        exact this
   exact fun set superset ↦ this (set.card) set superset (by rfl)
 
 lemma subset_eq_take_min_of_sum_eq {t : Type} [LinearOrder t]
@@ -620,53 +675,88 @@ lemma subset_eq_take_min_of_sum_eq {t : Type} [LinearOrder t]
         simp
         intro h
         simp[h] at set_card
-      -- idk if this is the best choice of element
-      let min_set : t := set.toFinset.min' set_finset_nonempty
-      have min_in_set : min_set ∈ set := by
-        unfold min_set
+      let max_set : t := set.toFinset.max' set_finset_nonempty
+      have max_in_set : max_set ∈ set := by
+        unfold max_set
         rw[← Multiset.mem_toFinset]
-        simp[Finset.min'_mem]
-      have min_in_superset : min_set ∈ superset :=
-        Multiset.mem_of_le set_le_superset min_in_set
-      let small_set : Multiset t := set.erase min_set
+        simp[Finset.max'_mem]
+      have max_in_superset : max_set ∈ superset :=
+        Multiset.mem_of_le set_le_superset max_in_set
+      let small_set : Multiset t := set.erase max_set
       have small_set_card : small_set.card = n := by
         rw[show n = set.card.pred by simp[set_card]]
-        exact Multiset.card_erase_of_mem min_in_set
-      let small_superset : Multiset t := superset.erase min_set
-      have small_superset_card : n ≤ small_superset.card := by
-        rw[Multiset.card_erase_of_mem min_in_superset]
-        simp
-        omega
-      have := ih
-        small_set
-        small_superset
-        small_set_card
-        (Multiset.erase_le_erase _ set_le_superset)
-        (by
-          have : set.sum = min_set + small_set.sum := by
-            unfold small_set
-            rw[← Multiset.cons_erase min_in_set]
-            simp
-          apply IsLeftCancelAdd.add_left_cancel min_set
-          simp only []
-          rw[← this, ← set_sum, set_card, small_set_card]
-          have := sum_min_superset_le_sum
-            (take_min n small_superset)
-            superset
-            (Trans.trans take_min_le (superset.erase_le min_set))
-          simp[take_min_card small_superset_card] at this
-          -- idk this seems hard to prove
-          have := sum_min_superset_le_sum
+        exact Multiset.card_erase_of_mem max_in_set
+      have small_set_le_superset : small_set ≤ superset := by
+        trans set
+        · apply Multiset.erase_le
+        · exact set_le_superset
+      let nth_smallest := superset.sort[n]'(by simp; omega)
+      have h :
+        nth_smallest = max_set ∧ (take_min n superset).sum = small_set.sum := by
+          unfold take_min at set_sum
+          simp at set_sum
+          rw
+            [ show set.sum = max_set + small_set.sum by
+              unfold small_set
+              rw[← Multiset.cons_erase max_in_set]
+              simp
+            , set_card
+            ] at set_sum
+          have := List.take_succ_eq_append_getElem
+            (show n < superset.sort.length by
+              simp
+              omega
+            )
+          rw[this, List.sum_append] at set_sum
+          simp at set_sum
+          change (take_min n superset).sum + nth_smallest
+            = max_set + small_set.sum at set_sum
+          have h₁ := sum_min_superset_le_sum
             small_set
-            small_superset
-            (Multiset.erase_le_erase _ set_le_superset)
-          have := sum_min_superset_le_sum
+            superset
+            small_set_le_superset
+          rw[small_set_card] at h₁
+          have h₂ := nth_smallest_superset_le_max_set
             set
             superset
+            (by by_contra h; simp[h] at set_card)
             set_le_superset
-
-        )
-
+          simp[set_card] at h₂
+          change nth_smallest ≤ max_set at h₂
+          obtain h₁ | h₁ := lt_or_eq_of_le h₁ <;>
+            obtain h₂ | h₂ := lt_or_eq_of_le h₂
+          · by_contra
+            have : (take_min n superset).sum + nth_smallest <
+              max_set + small_set.sum := by
+                trans (take_min n superset).sum + max_set
+                · simp[h₂]
+                · conv =>
+                    rhs
+                    rw[add_comm]
+                  simp[h₁]
+            exact ne_of_lt this set_sum
+          · conv at set_sum =>
+              rhs
+              rw[add_comm]
+            simp[h₂] at set_sum
+            by_contra
+            exact ne_of_lt h₁ set_sum
+          · conv at set_sum =>
+              rhs
+              rw[add_comm]
+            simp[h₁] at set_sum
+            by_contra
+            exact ne_of_lt h₂ set_sum
+          · exact ⟨h₂, h₁⟩
+      obtain ⟨nth_smallest_eq_max_set, take_n_sum_eq_small_set_sum⟩ := h
+      have := ih
+        small_set
+        superset
+        small_set_card
+        small_set_le_superset
+        (by simp[small_set_card, take_n_sum_eq_small_set_sum])
+      -- Should be easy from here
+      sorry
 
 lemma bl_cage_digits :
   {digit ⟨0, 7⟩, digit ⟨0, 8⟩} = ({2, 3} : Finset Digit) ∧
