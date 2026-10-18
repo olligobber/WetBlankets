@@ -9,6 +9,8 @@ import Mathlib.Data.Finset.Max
 import Mathlib.Algebra.Order.Monoid.Defs
 import Mathlib.Data.Multiset.Sort
 import Mathlib.Order.Defs.LinearOrder
+import Mathlib.Algebra.Order.Group.Synonym
+import Mathlib.Algebra.Order.Monoid.OrderDual
 
 def cages := wet_blankets.killercages
 noncomputable def negs := solution.negcells
@@ -406,11 +408,6 @@ lemma cage_total_pos_minus_neg : ∀ cage : cages, cage.val.total.all
 def take_min {t : Type} [LinearOrder t] : ℕ → Multiset t → Multiset t
   | n, s => s.sort.take n
 
--- Note that `decide` does not like merge sort,
--- so use `decide_cbv` or `native_decide` instead
-def take_max {t : Type} [LinearOrder t] : ℕ → Multiset t → Multiset t
-  | n, s => s.sort.reverse.take n
-
 lemma take_min_le {t : Type} [LinearOrder t] {n : ℕ} {s : Multiset t} :
   take_min n s ≤ s := by
     conv =>
@@ -423,10 +420,10 @@ lemma take_min_le {t : Type} [LinearOrder t] {n : ℕ} {s : Multiset t} :
     apply List.take_sublist
 
 @[simp]
-lemma take_min_card {t : Type} [LinearOrder t] {n : ℕ} {s : Multiset t}
-  (h : n ≤ s.card) : (take_min n s).card = n := by
+lemma take_min_card {t : Type} [LinearOrder t] {n : ℕ} {s : Multiset t} :
+  (take_min n s).card = min n s.card := by
     unfold take_min
-    simp[h]
+    simp
 
 lemma nth_smallest_superset_le_max_set {t : Type} [LinearOrder t] :
   ∀ (set superset : Multiset t) (h₁ : set ≠ 0) (h₂ : set ≤ superset),
@@ -582,7 +579,7 @@ lemma nth_smallest_superset_le_max_set {t : Type} [LinearOrder t] :
   · simp[hi₁]
 
 lemma sum_min_superset_le_sum {t : Type} [LinearOrder t] [AddCommMonoid t]
-  [IsOrderedAddMonoid t] : ∀ (set superset : Multiset t) (_ : set ≤ superset),
+  [IsOrderedAddMonoid t] : ∀ (set superset : Multiset t), set ≤ superset →
     (take_min set.card superset).sum ≤ set.sum := by
   have : ∀ (n : ℕ) (set superset : Multiset t) (h₁ : set.card = n)
     (h₂ : set ≤ superset), (take_min n superset).sum ≤ set.sum := fun n ↦ by
@@ -653,8 +650,8 @@ lemma sum_min_superset_le_sum {t : Type} [LinearOrder t] [AddCommMonoid t]
 
 lemma subset_eq_take_min_of_sum_eq {t : Type} [LinearOrder t]
   [AddCancelCommMonoid t] [IsOrderedAddMonoid t] :
-    ∀ (set superset : Multiset t) (_ : set ≤ superset),
-      (take_min set.card superset).sum = set.sum →
+    ∀ (set superset : Multiset t),
+      set ≤ superset → (take_min set.card superset).sum = set.sum →
         set = take_min set.card superset := by
   have : ∀ n : ℕ, ∀ (set superset : Multiset t) (_ : set.card = n)
     (_ : set ≤ superset), (take_min set.card superset).sum = set.sum →
@@ -776,6 +773,109 @@ lemma subset_eq_take_min_of_sum_eq {t : Type} [LinearOrder t]
       symm
       exact nth_smallest_eq_max_set
   exact fun set superset ↦ this (set.card) set superset (by rfl)
+
+inductive OfDual : Type → Type where
+  | mk {t : Type} : OfDual t
+
+instance {t : Type} : FunLike (OfDual t) (tᵒᵈ) t where
+  coe _ := OrderDual.ofDual
+  coe_injective _ _ _ := by simp
+
+instance {t : Type} [i₁ : AddZeroClass t] :
+  AddMonoidHomClass (OfDual t) (tᵒᵈ) t where
+    map_add _ _ _ := by
+      congr
+      simp
+    map_zero _ := by rfl
+
+inductive ToDual : Type → Type where
+  | mk {t : Type} : ToDual t
+
+instance {t : Type} : FunLike (ToDual t) t (tᵒᵈ) where
+  coe _ := OrderDual.toDual
+  coe_injective _ _ _ := by simp
+
+instance {t : Type} [i₁ : AddZeroClass t] :
+  AddMonoidHomClass (ToDual t) t (tᵒᵈ) where
+    map_add _ _ _ := by
+      congr
+      simp
+    map_zero _ := by rfl
+
+-- Note that `decide` does not like merge sort,
+-- so use `decide_cbv` or `native_decide` instead
+def take_max {t : Type} [LinearOrder t] : ℕ → Multiset t → Multiset t
+  | n, s => (take_min n (s.map ToDual.mk)).map OfDual.mk
+
+lemma take_max_le {t : Type} [LinearOrder t] {n : ℕ} {s : Multiset t} :
+  take_max n s ≤ s := by
+    unfold take_max
+    simp only
+    conv =>
+      rhs
+      rw [show s = (s.map OrderDual.toDual).map OrderDual.ofDual by simp]
+    apply Multiset.map_le_map
+    apply take_min_le
+
+lemma take_max_card {t : Type} [LinearOrder t] {n : ℕ} {s : Multiset t} :
+  (take_max n s).card = min n s.card := by
+    unfold take_max
+    simp
+
+lemma sum_max_superset_ge_sum {t : Type} [LinearOrder t] [AddCommMonoid t]
+  [IsOrderedAddMonoid t] : ∀ (set superset : Multiset t), set ≤ superset →
+    (take_max set.card superset).sum ≥ set.sum := by
+  intro set superset set_le_superset
+  unfold take_max
+  simp only [ge_iff_le]
+  conv =>
+    lhs
+    rw
+      [ show set = (set.map ToDual.mk).map OfDual.mk by
+        change set = (set.map OrderDual.toDual).map OrderDual.ofDual
+        simp
+      ]
+  rw[Multiset.sum_hom]
+  conv =>
+    rhs
+    rw[Multiset.sum_hom]
+  change OrderDual.ofDual _ ≤ OrderDual.ofDual _
+  simp only [OrderDual.ofDual_le_ofDual]
+  have := sum_min_superset_le_sum
+    (set.map OrderDual.toDual)
+    (superset.map OrderDual.toDual)
+    (by simp[set_le_superset])
+  simp only [Multiset.card_map] at this
+  exact this
+
+lemma subset_eq_take_max_of_sum_eq {t : Type} [LinearOrder t]
+  [AddCancelCommMonoid t] [IsOrderedAddMonoid t] :
+    ∀ (set superset : Multiset t),
+      set ≤ superset → (take_max set.card superset).sum = set.sum →
+        set = take_max set.card superset := by
+  intro set superset set_le_superset sum_eq
+  unfold take_max at *
+  simp only at *
+  rw[Multiset.sum_hom] at sum_eq
+  change (take_min _ (superset.map OrderDual.toDual)).sum = _ at sum_eq
+  have := subset_eq_take_min_of_sum_eq
+    (set.map ToDual.mk)
+    (superset.map ToDual.mk)
+    (by simp[set_le_superset])
+    (by
+      simp only [Multiset.card_map]
+      rw[Multiset.sum_hom]
+      exact sum_eq
+    )
+  simp at this
+  conv =>
+    lhs
+    rw
+      [ show set = (set.map ToDual.mk).map OfDual.mk by
+        change set = (set.map OrderDual.toDual).map OrderDual.ofDual
+        simp
+      ]
+  congr
 
 lemma bl_cage_digits :
   {digit ⟨0, 7⟩, digit ⟨0, 8⟩} = ({2, 3} : Finset Digit) ∧
