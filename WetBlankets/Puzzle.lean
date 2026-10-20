@@ -61,7 +61,7 @@ deriving instance DecidableEq for
   Digit
 
 instance : Fintype Row where
-  elems := Finset.image Row.mk Fintype.elems
+  elems := Fintype.elems.image Row.mk
   complete := by
     intro ⟨n⟩
     have := @Fintype.complete (Fin 9) _ n
@@ -69,12 +69,33 @@ instance : Fintype Row where
     use n
 
 instance : Fintype Col where
-  elems := Finset.image Col.mk Fintype.elems
+  elems := Fintype.elems.image Col.mk
   complete := by
     intro ⟨n⟩
     have := @Fintype.complete (Fin 9) _ n
     rw [Finset.mem_image]
     use n
+
+instance : Fintype Digit where
+  elems := (Finset.range 9).attach.image
+    (fun n ↦
+      ⟨ n.val + 1
+      , by simp
+      , Nat.succ_lt_succ <| Finset.mem_range.mp n.prop
+      ⟩)
+  complete := by
+    intro ⟨n, nonzero, single⟩
+    simp only
+      [ Finset.mem_image
+      , Finset.mem_attach
+      , Digit.mk.injEq
+      , true_and
+      , Subtype.exists
+      , Finset.mem_range
+      , exists_prop
+      ]
+    use n - 1
+    omega
 
 def Solution : Type := Cell → Digit
 

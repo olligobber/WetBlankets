@@ -11,6 +11,7 @@ import Mathlib.Data.Multiset.Sort
 import Mathlib.Order.Defs.LinearOrder
 import Mathlib.Algebra.Order.Group.Synonym
 import Mathlib.Algebra.Order.Monoid.OrderDual
+import Mathlib.Algebra.Order.Group.Int
 
 def cages := wet_blankets.killercages
 noncomputable def negs := solution.negcells
@@ -877,6 +878,13 @@ lemma subset_eq_take_max_of_sum_eq {t : Type} [LinearOrder t]
       ]
   congr
 
+def all_int_digits : Finset ℤ := {1, 2, 3, 4, 5, 6, 7, 8, 9}
+
+lemma in_all_int_digits : ∀ c : Cell, int_digit c ∈ all_int_digits := by
+  intro c
+  have : ∀ d : Digit, ↑d.val ∈ all_int_digits := by decide
+  apply this
+
 lemma bl_cage_digits :
   {digit ⟨0, 7⟩, digit ⟨0, 8⟩} = ({2, 3} : Finset Digit) ∧
   {digit ⟨1, 7⟩, digit ⟨1, 8⟩} = ({1, 9} : Finset Digit) := by
@@ -886,6 +894,68 @@ lemma bl_cage_digits :
     let pos_cells := cage_cells.erase neg_cell
     have sum := cage_total_pos_minus_neg ⟨cage, by decide⟩
     unfold cage at sum
-    simp at sum
+    simp only [Int.reduceNeg, Option.all_some, decide_eq_true_eq] at sum
     change pos_cells.sum int_digit - int_digit neg_cell = -3 at sum
+    have cage_box : ∀ cell ∈ cage_cells, cell.box = 6 := by decide
+    have pos_cells_card : pos_cells.card = 3 := by
+      unfold pos_cells
+      rw[Finset.card_erase_of_mem (cage_has_neg ⟨cage, by decide⟩)]
+      decide
+    have : pos_cells.sum int_digit ≥ 6 := by
+      let f : pos_cells → ℤ := fun c ↦ int_digit c
+      have f_inj : f.Injective := by
+        intro ⟨a, ha⟩ ⟨b, hb⟩ same_digit
+        unfold f int_digit at same_digit
+        simp only [Nat.cast_inj] at same_digit
+        rw[← Digit.mk.injEq] at same_digit
+        change digit a = digit b at same_digit
+        by_contra diff_cells
+        simp only [Subtype.mk.injEq] at diff_cells
+        exact validsol.1
+          a
+          b
+          diff_cells
+          (by
+            right
+            right
+            unfold pos_cells at ha hb
+            simp only [Finset.mem_erase] at ha hb
+            rw[cage_box a ha.2, cage_box b hb.2]
+          )
+          same_digit
+      let pos_vals := pos_cells.attach.map ⟨f, f_inj⟩
+      have : pos_vals ⊆ all_int_digits := by
+        intro val hval
+        unfold pos_vals at hval
+        simp only
+          [Finset.mem_map
+          , Finset.mem_attach
+          , Function.Embedding.coeFn_mk
+          , true_and
+          , Subtype.exists
+          ] at hval
+        obtain ⟨cell, hcell, hval⟩ := hval
+        unfold f int_digit at hval
+        rw[← hval]
+        apply in_all_int_digits
+      have := sum_min_superset_le_sum
+        pos_vals.val
+        all_int_digits.val
+        (by simp[this])
+      conv at this =>
+        lhs
+        unfold pos_vals
+        simp
+        rw
+          [ Multiset.card_attach
+          , Finset.card_val
+          , pos_cells_card
+          , show (take_min 3 all_int_digits.val).sum = 6 by decide_cbv
+          ]
+      rw[Finset.sum_val] at this
+      unfold pos_vals f at this
+      simp only [id_eq, Finset.sum_map, Function.Embedding.coeFn_mk] at this
+      rw[Finset.sum_attach] at this
+      simp only [ge_iff_le]
+      exact this
     sorry
